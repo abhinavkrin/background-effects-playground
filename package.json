@@ -1,0 +1,31 @@
+{
+  "name": "background-effects-playground",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Camera background blur in the browser: segmentation models, mask strategies and model switching, side by side.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@livekit/track-processors": "file:vendor/livekit-track-processors-0.8.3-main.tgz",
+    "@mediapipe/tasks-vision": "0.10.14",
+    "livekit-client": "2.22.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "track-processors-proposed": "file:vendor/livekit-track-processors-0.8.3-proposed.tgz"
+  },
+  "devDependencies": {
+    "@types/dom-mediacapture-transform": "0.1.12",
+    "@types/node": "^24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.8"
+  }
+}

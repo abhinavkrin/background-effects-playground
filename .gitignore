@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Copied from node_modules/@mediapipe/tasks-vision by the mediapipe-assets Vite plugin on every dev/build start.
+public/mediapipe/
+*.log
+.DS_Store

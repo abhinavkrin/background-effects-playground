@@ -1,0 +1,13 @@
+Background Effects Playground
+
+This project includes the following MediaPipe models by Google LLC, licensed under the Apache License, Version 2.0
+(see LICENSE):
+
+- public/models/selfie_segmenter_landscape.tflite, unmodified.
+- public/models/selfie_segmenter_square.tflite, unmodified.
+  Model card: https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Selfie%20Segmentation.pdf
+
+- public/models/selfie_multiclass_256x256_fp16.tflite, modified: the float32 weights of selfie_multiclass_256x256
+  were converted to float16 with tools/fp16_convert.py, and are converted back to float32 by DEQUANTIZE operations
+  when the model loads. The model's structure and metadata are unchanged.
+  Model card: https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Multiclass%20Segmentation.pdf
