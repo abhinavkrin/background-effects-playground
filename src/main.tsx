@@ -4,7 +4,7 @@ import { conditions } from './sim/conditions';
 import { App } from './ui/App';
 import './ui/styles.css';
 
-// Handles for automation and for poking at the lab from the console (see CLAUDE.md, "Driving the lab").
+// Handles for automation and for poking at the playground from the browser console.
 (window as unknown as { __lab: Record<string, unknown> }).__lab = { lab, conditions };
 
 const root = document.getElementById('root');

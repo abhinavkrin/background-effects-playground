@@ -1,4 +1,4 @@
-import { PROPOSED_DEFAULTS, type EngineKind, type Engine, type FrameReport, type LibraryOptions, type SwitchMethod, type SwitchReport } from '../engines/types';
+import { LIBRARY_DEFAULTS, type EngineKind, type Engine, type FrameReport, type LibraryOptions, type SwitchMethod, type SwitchReport } from '../engines/types';
 import { LabEngine } from '../engines/lab/LabEngine';
 import { LibraryEngine } from '../engines/library/LibraryEngine';
 import { Store } from '../lib/store';
@@ -17,7 +17,7 @@ export interface PaneConfig {
 	modelId: string;
 	strategy: Strategy;
 	view: ViewMode;
-	/** Used by the proposed library build. */
+	/** BackgroundProcessor options, for the library engine. */
 	library?: LibraryOptions;
 }
 
@@ -48,7 +48,7 @@ let panes = 0;
 export class Pane {
 	readonly id = ++panes;
 
-	readonly metrics = new PaneMetrics();
+	metrics = new PaneMetrics();
 
 	readonly flash = new FlashDetector();
 
@@ -66,10 +66,12 @@ export class Pane {
 		const request = ++this.startRequest;
 		await this.stopEngine();
 		const model = modelById(config.modelId);
-		const engine: Engine = config.engine === 'lab' ? new LabEngine() : new LibraryEngine(config.engine, config.library ?? PROPOSED_DEFAULTS);
+		const engine: Engine = config.engine === 'lab' ? new LabEngine() : new LibraryEngine(config.library ?? LIBRARY_DEFAULTS);
 		engine.onFrame = (report) => this.onFrame(engine, report);
 		this.engine = engine;
-		this.state.update({ status: 'starting', error: undefined, engine: config.engine, modelId: model.id });
+		this.metrics = new PaneMetrics();
+		this.frameLog = [];
+		this.state.update({ status: 'starting', error: undefined, engine: config.engine, modelId: model.id, switches: [] });
 		try {
 			// One download per model, shared by every pane that runs it.
 			bytes ??= await loadModelBytes(model);
@@ -83,6 +85,7 @@ export class Pane {
 				this.watchPresented(engine.element as HTMLVideoElement);
 			}
 		} catch (e) {
+			void engine.dispose();
 			if (request === this.startRequest) {
 				this.state.update({ status: 'error', error: e instanceof Error ? e.message : String(e) });
 			}

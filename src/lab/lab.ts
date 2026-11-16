@@ -1,4 +1,5 @@
 import { Store } from '../lib/store';
+import { SCENERY } from './backgrounds';
 import type { BackgroundSetting } from '../passes/background';
 import { FrameClock } from '../sources/clock';
 import { Source } from '../sources/source';
@@ -8,7 +9,10 @@ import type { Pane } from './pane';
 export class Lab {
 	readonly source = new Source();
 
-	readonly background = new Store<BackgroundSetting>({ mode: 'blur', radius: 10 });
+	readonly background = new Store<BackgroundSetting>({ mode: 'image', url: SCENERY[0].url });
+
+	/** The scenery photos, then the test patterns and uploads as they are added. */
+	readonly backgroundImages = new Store<Array<{ label: string; url: string }>>(SCENERY);
 
 	/** Panes of the visible tab: only these get frames, so hidden panes do not skew measurements. */
 	private readonly active = new Set<Pane>();

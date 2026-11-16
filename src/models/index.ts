@@ -1,4 +1,5 @@
 import { multiclassFp16 } from './multiclassFp16';
+import { multiclassFp32 } from './multiclassFp32';
 import { selfieLandscape } from './selfieLandscape';
 import { selfieSquare } from './selfieSquare';
 import type { ModelEntry } from './types';
@@ -6,7 +7,7 @@ import type { ModelEntry } from './types';
 export type { MaskLayout, ModelEntry } from './types';
 
 /** Every model the playground can load, in the order the pickers show them. */
-export const MODELS: readonly ModelEntry[] = [selfieLandscape, multiclassFp16, selfieSquare];
+export const MODELS: readonly ModelEntry[] = [selfieLandscape, multiclassFp16, multiclassFp32, selfieSquare];
 
 /** The two models the switching research is about. */
 export const SMALL_MODEL_ID = selfieLandscape.id;
@@ -24,7 +25,7 @@ export const modelUrl = (model: ModelEntry): string => new URL(`models/${model.f
 
 const loaded = new Map<string, Promise<Uint8Array>>();
 
-/** The model's bytes, fetched once per page straight from the dev server (no simulated network). */
+/** The model's bytes, fetched once per page from the site (no simulated network). */
 export const loadModelBytes = (model: ModelEntry): Promise<Uint8Array> => {
 	let bytes = loaded.get(model.id);
 	if (!bytes) {

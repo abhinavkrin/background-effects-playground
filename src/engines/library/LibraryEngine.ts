@@ -1,6 +1,5 @@
 import type { ImageSegmenter } from '@mediapipe/tasks-vision';
-import { BackgroundProcessor as StockProcessor, type BackgroundOptions, type BackgroundProcessorWrapper, type SwitchBackgroundProcessorOptions } from '@livekit/track-processors';
-import { BackgroundProcessor as ProposedProcessor } from 'track-processors-proposed';
+import { BackgroundProcessor, type BackgroundOptions, type BackgroundProcessorWrapper, type SwitchBackgroundProcessorOptions } from '@livekit/track-processors';
 import { LocalVideoTrack } from 'livekit-client';
 import { WASM_BASE, createSegmenter, wasmHeapBytes } from '../../lib/mediapipe';
 import { modelUrl, type ModelEntry } from '../../models';
@@ -8,24 +7,33 @@ import type { BackgroundSetting } from '../../passes/background';
 import { GpuLoad, forcedReadback } from '../../sim/gpuLoad';
 import { busyWait, conditions } from '../../sim/conditions';
 import type { Strategy } from '../../strategies';
-import type { Engine, EngineInit, FrameReport, LibraryBuild, LibraryOptions, SwitchMethod, SwitchReport } from '../types';
+import type { Engine, EngineInit, FrameReport, LibraryOptions, SwitchMethod, SwitchReport } from '../types';
 
 type FrameProcessingStats = Parameters<NonNullable<BackgroundOptions['onFrameProcessed']>>[0];
 
 let instances = 0;
 
-const switchOptions = (background: BackgroundSetting): SwitchBackgroundProcessorOptions =>
-	background.mode === 'blur' ? { mode: 'background-blur', blurRadius: background.radius } : { mode: 'disabled' };
+const switchOptions = (background: BackgroundSetting): SwitchBackgroundProcessorOptions => {
+	switch (background.mode) {
+		case 'blur':
+			return { mode: 'background-blur', blurRadius: background.radius };
+		case 'image':
+			return { mode: 'virtual-background', imagePath: background.url };
+		default:
+			return { mode: 'disabled' };
+	}
+};
 
 /**
  * @livekit/track-processors itself, driven the way an app drives it: a LocalVideoTrack (never published to a room),
- * `setProcessor(BackgroundProcessor(...))`, and `switchTo(...)` for effect changes. `stock` is upstream main;
- * `proposed` is main with the options under review upstream, set from `options`.
+ * `setProcessor(BackgroundProcessor(...))`, and `switchTo(...)` for effect changes, with `options` passed through.
  *
  * Input: each frame is drawn into a canvas whose `captureStream(0)` track stands in for the camera, and
  * `requestFrame()` emits it, so every pane gets the same frames. Output: the processed track, attached to a <video>.
  */
 export class LibraryEngine implements Engine {
+	readonly kind = 'library' as const;
+
 
 	readonly supportsViews = false;
 
@@ -53,10 +61,10 @@ export class LibraryEngine implements Engine {
 
 	private disposed = false;
 
-	constructor(
-		readonly kind: LibraryBuild,
-		private readonly options: LibraryOptions,
-	) {
+	/** A processor is being set up; it applies the latest background when it is ready. */
+	private starting = false;
+
+	constructor(private readonly options: LibraryOptions) {
 		this.element = document.createElement('video');
 		this.element.muted = true;
 		this.element.playsInline = true;
@@ -113,7 +121,7 @@ export class LibraryEngine implements Engine {
 		const previous = this.background;
 		this.background = background;
 		const track = this.track;
-		if (!track) {
+		if (!track || this.starting) {
 			return;
 		}
 		if (background.mode === 'none') {
@@ -143,16 +151,14 @@ export class LibraryEngine implements Engine {
 		const report: SwitchReport = { method, from: this.model.id, to: model.id, startedAt, callMs: 0, ok: false, heapBefore: wasmHeapBytes(this.segmenter()) };
 		try {
 			const transformer = this.processor?.transformer;
-			if (!this.track || !transformer) {
-				throw new Error('no processor running');
-			}
-			if (method === 'in-place') {
+			// With no effect running, the next processor starts on the new model.
+			if (transformer && method === 'in-place') {
 				const segmenter = transformer.imageSegmenter;
 				if (!segmenter) {
 					throw new Error('no segmenter');
 				}
 				await segmenter.setOptions({ baseOptions: { modelAssetBuffer: bytes, delegate: 'GPU' } });
-			} else if (method === 'second-segmenter') {
+			} else if (transformer && method === 'second-segmenter') {
 				const canvas = transformer.canvas;
 				if (!canvas) {
 					throw new Error('no canvas');
@@ -161,7 +167,7 @@ export class LibraryEngine implements Engine {
 				const old = transformer.imageSegmenter;
 				transformer.imageSegmenter = next;
 				old?.close();
-			} else {
+			} else if (transformer) {
 				await this.startProcessor(model, bytes);
 			}
 			this.model = model;
@@ -202,7 +208,7 @@ export class LibraryEngine implements Engine {
 	}
 
 	private segmenterOutput(): 'confidence' | 'category' {
-		return this.kind === 'proposed' && this.options.segmentationMask === 'confidence' ? 'confidence' : 'category';
+		return this.options.segmentationMask;
 	}
 
 	/**
@@ -210,14 +216,22 @@ export class LibraryEngine implements Engine {
 	 * reporting frames until setProcessor stops it, since the viewer keeps seeing them.
 	 */
 	private async startProcessor(model: ModelEntry, bytes?: Uint8Array): Promise<void> {
-		const background = switchOptions(this.background);
+		this.starting = true;
+		try {
+			await this.setUpProcessor(model, bytes);
+		} finally {
+			this.starting = false;
+		}
+	}
+
+	private async setUpProcessor(model: ModelEntry, bytes?: Uint8Array): Promise<void> {
+		const setting = this.background;
+		const background = switchOptions(setting);
 		const options = background.mode === 'disabled' ? ({ mode: 'background-blur', blurRadius: 10 } as const) : background;
-		// The proposed build takes the stock options plus its own, so it is called through the stock signature.
-		const build = this.kind === 'proposed' ? (ProposedProcessor as unknown as typeof StockProcessor) : StockProcessor;
-		const processor = build(
+		const processor = BackgroundProcessor(
 			{
 				...options,
-				...(this.kind === 'proposed' ? this.options : {}),
+				...this.options,
 				assetPaths: { tasksVisionFileSet: WASM_BASE, modelAssetPath: modelUrl(model) },
 				// Built from bytes when given: these override the model path in assetPaths.
 				segmenterOptions: bytes ? { modelAssetPath: undefined, modelAssetBuffer: bytes, delegate: 'GPU' } : undefined,
@@ -230,7 +244,21 @@ export class LibraryEngine implements Engine {
 			this.name,
 		);
 		await this.track?.setProcessor(processor);
+		if (this.disposed) {
+			await this.track?.stopProcessor();
+			return;
+		}
 		this.processor = processor;
+		// The background changed while the processor was being set up.
+		if (this.background === setting) {
+			return;
+		}
+		if (this.background.mode === 'none') {
+			await this.track?.stopProcessor();
+			this.processor = undefined;
+		} else {
+			await processor.switchTo(switchOptions(this.background));
+		}
 	}
 
 	private onProcessed(stats: FrameProcessingStats): void {

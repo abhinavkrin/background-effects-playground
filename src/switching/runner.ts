@@ -1,4 +1,4 @@
-import { PROPOSED_DEFAULTS, type EngineKind, type SwitchMethod } from '../engines/types';
+import { ALL_OPTIONS_ON, type EngineKind, type SwitchMethod } from '../engines/types';
 import type { Pane } from '../lab/pane';
 import { lab } from '../lab/lab';
 import type { Params } from '../lib/params';
@@ -125,7 +125,7 @@ export class PolicyRunner {
 			return;
 		}
 		const { width, height } = lab.source.state.get();
-		await this.pane.start({ engine: options.engine, modelId: model, strategy: options.strategy, view: 'effect', library: PROPOSED_DEFAULTS }, lab.background.get(), { width, height }, bytes ?? undefined);
+		await this.pane.start({ engine: options.engine, modelId: model, strategy: options.strategy, view: 'effect', library: ALL_OPTIONS_ON }, lab.background.get(), { width, height }, bytes ?? undefined);
 		if (run !== this.run) {
 			return;
 		}

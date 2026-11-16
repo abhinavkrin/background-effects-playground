@@ -4,25 +4,29 @@ import type { BackgroundSetting } from '../passes/background';
 import type { ViewMode } from '../passes/composite';
 import type { Strategy } from '../strategies';
 
-/** `lab`: the editable pipeline. `stock` and `proposed`: @livekit/track-processors itself (see LibraryEngine). */
-export type EngineKind = 'lab' | LibraryBuild;
+/** `library`: @livekit/track-processors itself (see LibraryEngine). `lab`: the editable pipeline. */
+export type EngineKind = 'library' | 'lab';
 
-export type LibraryBuild = 'stock' | 'proposed';
-
-/** The options the proposed build adds to BackgroundProcessor. */
+/** The BackgroundProcessor options from livekit/track-processors-js#159 and its two follow-ups. */
 export interface LibraryOptions {
 	segmentationMask: 'category' | 'confidence';
 	temporalSmoothing: boolean;
 	edgeRefinement: boolean;
 }
 
-export const PROPOSED_DEFAULTS: LibraryOptions = { segmentationMask: 'confidence', temporalSmoothing: true, edgeRefinement: true };
+/** The library's defaults: it renders as livekit/track-processors-js main. */
+export const LIBRARY_DEFAULTS: LibraryOptions = { segmentationMask: 'category', temporalSmoothing: false, edgeRefinement: false };
+
+export const ALL_OPTIONS_ON: LibraryOptions = { segmentationMask: 'confidence', temporalSmoothing: true, edgeRefinement: true };
 
 export const ENGINE_LABELS: Record<EngineKind, string> = {
-	stock: 'Library main',
-	proposed: 'Library, proposed',
-	lab: 'Editable pipeline',
+	library: 'LiveKit track-processors',
+	lab: 'Custom WebGL pipeline',
 };
+
+/** The options a library pane runs with, as they are passed to BackgroundProcessor. */
+export const describeLibrary = ({ segmentationMask, temporalSmoothing, edgeRefinement }: LibraryOptions): string =>
+	[`segmentationMask: '${segmentationMask}'`, temporalSmoothing && 'temporalSmoothing', edgeRefinement && 'edgeRefinement'].filter(Boolean).join(', ');
 
 /**
  * How a running engine moves to another model.

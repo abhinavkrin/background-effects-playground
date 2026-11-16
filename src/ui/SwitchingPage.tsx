@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ENGINE_LABELS, SWITCH_METHODS, type EngineKind, type SwitchMethod } from '../engines/types';
+import { ALL_OPTIONS_ON, ENGINE_LABELS, SWITCH_METHODS, describeLibrary, type EngineKind, type SwitchMethod } from '../engines/types';
 import { Pane } from '../lab/pane';
 import type { Params } from '../lib/params';
 import { useStore, useTicker } from '../lib/store';
@@ -21,7 +21,7 @@ export const SwitchingPage = ({ active }: { active: boolean }) => {
 	const runnerState = useStore(runner.state);
 	const paneState = useStore(runner.pane.state);
 	useTicker(1000);
-	const [engine, setEngine] = useState<EngineKind>('proposed');
+	const [engine, setEngine] = useState<EngineKind>('library');
 	const [strategyId, setStrategyId] = useState('confidence-adaptive-edges');
 	const [policyId, setPolicyId] = useState('gated');
 	const [params, setParams] = useState<Record<string, Params>>({});
@@ -102,7 +102,7 @@ export const SwitchingPage = ({ active }: { active: boolean }) => {
 						</span>
 					)}
 				</div>
-				<PaneSurface pane={runner.pane} active={active} strategyLabel={engine === 'lab' ? strategyById(strategyId).label : engine === 'proposed' ? 'all proposed options' : 'category mask'} />
+				<PaneSurface pane={runner.pane} active={active} strategyLabel={engine === 'lab' ? strategyById(strategyId).label : describeLibrary(ALL_OPTIONS_ON)} />
 				<TimelineChart runner={runner} />
 				<div className='manual'>
 					<label>

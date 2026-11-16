@@ -1,6 +1,6 @@
 import { RenderTarget, bindTexture, createProgram, glsl, initTexture, useQuad, vertexShaderSource } from './gl';
 
-// The library's background: a quarter-size Gaussian blur of the frame
+// The library's background: a quarter-size Gaussian blur of the frame, or an image cropped to cover the canvas
 // (src/webgl/index.ts, shader-programs/blurShader.ts and downSampler.ts in @livekit/track-processors).
 
 const GAUSSIAN_MAX_RADIUS = 16;
@@ -74,8 +74,25 @@ const computeGaussianKernel = (blurRadius: number) => {
 	return { weights, offsets, tapCount };
 };
 
+const resizeImageToCover = (image: ImageBitmap, targetWidth: number, targetHeight: number): Promise<ImageBitmap> => {
+	const imgAspect = image.width / image.height;
+	const targetAspect = targetWidth / targetHeight;
+	let sx = 0;
+	let sy = 0;
+	let sWidth = image.width;
+	let sHeight = image.height;
+	if (imgAspect > targetAspect) {
+		sWidth = Math.round(image.height * targetAspect);
+		sx = Math.round((image.width - sWidth) / 2);
+	} else if (imgAspect < targetAspect) {
+		sHeight = Math.round(image.width / targetAspect);
+		sy = Math.round((image.height - sHeight) / 2);
+	}
+	return createImageBitmap(image, sx, sy, sWidth, sHeight, { resizeWidth: targetWidth, resizeHeight: targetHeight, resizeQuality: 'medium' });
+};
+
 /** What goes behind the person. */
-export type BackgroundSetting = { mode: 'blur'; radius: number } | { mode: 'none' };
+export type BackgroundSetting = { mode: 'blur'; radius: number } | { mode: 'image'; url: string } | { mode: 'none' };
 
 export class Background {
 	private readonly blurProgram: WebGLProgram;
@@ -86,7 +103,7 @@ export class Background {
 
 	private readonly blurTargets: [RenderTarget, RenderTarget];
 
-	private readonly emptyTexture: WebGLTexture;
+	private readonly imageTexture: WebGLTexture;
 
 	private readonly blurUniforms;
 
@@ -94,12 +111,18 @@ export class Background {
 
 	private blurRadius: number | null = null;
 
+	private image: ImageBitmap | null = null;
+
+	private imageSize = { width: 0, height: 0 };
+
+	private imageRequest = 0;
+
 	constructor(private readonly gl: WebGL2RenderingContext) {
 		this.blurProgram = createProgram(gl, vertexShaderSource(), blurFragment);
 		this.downsampleProgram = createProgram(gl, downsampleVertex, downsampleFragment);
 		this.downsampled = new RenderTarget(gl);
 		this.blurTargets = [new RenderTarget(gl), new RenderTarget(gl)];
-		this.emptyTexture = initTexture(gl);
+		this.imageTexture = initTexture(gl);
 		this.blurUniforms = {
 			texture: gl.getUniformLocation(this.blurProgram, 'u_texture'),
 			texelSize: gl.getUniformLocation(this.blurProgram, 'u_texelSize'),
@@ -112,18 +135,53 @@ export class Background {
 	}
 
 	get disabled(): boolean {
-		return this.blurRadius === null;
+		return this.blurRadius === null && !this.image;
 	}
 
-	set(setting: BackgroundSetting): void {
-		this.blurRadius = setting.mode === 'blur' && setting.radius ? Math.max(1, Math.floor(setting.radius / DOWNSAMPLE_FACTOR)) : null;
+	/** Applies a background; an image is loaded and cropped asynchronously, transparent until then. */
+	async set(setting: BackgroundSetting, width: number, height: number): Promise<void> {
+		const request = ++this.imageRequest;
+		if (setting.mode === 'blur') {
+			this.blurRadius = setting.radius ? Math.max(1, Math.floor(setting.radius / DOWNSAMPLE_FACTOR)) : null;
+			this.replaceImage(null);
+			return;
+		}
+		this.blurRadius = null;
+		if (setting.mode === 'none') {
+			this.replaceImage(null);
+			return;
+		}
+		let bitmap: ImageBitmap;
+		try {
+			const response = await fetch(setting.url);
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+			bitmap = await createImageBitmap(await response.blob());
+		} catch (e) {
+			console.error(`background image ${setting.url}:`, e);
+			if (request === this.imageRequest) {
+				this.replaceImage(null);
+			}
+			return;
+		}
+		if (request !== this.imageRequest) {
+			bitmap.close();
+			return;
+		}
+		this.replaceImage(bitmap);
+		this.uploadEmpty();
+		await this.fitImage(width, height);
 	}
 
 	/** Produces the background texture for a frame already uploaded to `frameTexture`. */
 	render(frameTexture: WebGLTexture, width: number, height: number, vertexBuffer: WebGLBuffer): WebGLTexture {
 		const gl = this.gl;
+		if (this.image && (this.imageSize.width !== width || this.imageSize.height !== height)) {
+			void this.fitImage(width, height);
+		}
 		if (!this.blurRadius) {
-			return this.emptyTexture;
+			return this.imageTexture;
 		}
 		const w = Math.max(1, Math.floor(width / DOWNSAMPLE_FACTOR));
 		const h = Math.max(1, Math.floor(height / DOWNSAMPLE_FACTOR));
@@ -162,13 +220,43 @@ export class Background {
 		gl.deleteProgram(this.downsampleProgram);
 		this.downsampled.dispose();
 		this.blurTargets.forEach((target) => target.dispose());
-		gl.deleteTexture(this.emptyTexture);
+		gl.deleteTexture(this.imageTexture);
+		this.replaceImage(null);
 	}
 
 	private uploadEmpty(): void {
 		const gl = this.gl;
 		gl.activeTexture(gl.TEXTURE0);
-		gl.bindTexture(gl.TEXTURE_2D, this.emptyTexture);
+		gl.bindTexture(gl.TEXTURE_2D, this.imageTexture);
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, new ImageData(2, 2));
+	}
+
+	private replaceImage(image: ImageBitmap | null): void {
+		this.image?.close();
+		this.image = image;
+	}
+
+	private async fitImage(width: number, height: number): Promise<void> {
+		const image = this.image;
+		if (!image || width === 0 || height === 0) {
+			return;
+		}
+		this.imageSize = { width, height };
+		let cropped: ImageBitmap;
+		try {
+			cropped = await resizeImageToCover(image, width, height);
+		} catch {
+			// The image was replaced and closed while it was being cropped.
+			return;
+		}
+		if (this.image !== image) {
+			cropped.close();
+			return;
+		}
+		const gl = this.gl;
+		gl.activeTexture(gl.TEXTURE0);
+		gl.bindTexture(gl.TEXTURE_2D, this.imageTexture);
+		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cropped);
+		cropped.close();
 	}
 }

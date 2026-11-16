@@ -10,11 +10,11 @@ const edgeRefinement: PassConfig = { pass: 'bilateral', enabled: true, params: {
 
 const base = { segmenterOutput: 'confidence', glReset: true, maskTargetEdge: 640 } as const;
 
-/** What the proposed library build does with segmentationMask 'confidence', temporalSmoothing and edgeRefinement. */
+/** What the library does with segmentationMask 'confidence', temporalSmoothing and edgeRefinement. */
 export const confidenceAdaptiveEdges: Strategy = {
 	...base,
 	id: 'confidence-adaptive-edges',
-	label: 'Confidence mask, motion-adaptive blend, edge refinement',
+	label: 'Confidence mask + box blur + motion-adaptive EMA + joint bilateral',
 	description: 'Confidence mask, box blur 8, blend with the previous mask (0.15 of the new one where still, up to 0.90 where moving), then a joint bilateral filter guided by the frame.',
 	mask: [toBackground, boxBlur, adaptiveBlend],
 	frame: [edgeRefinement],
@@ -24,8 +24,8 @@ export const confidenceAdaptiveEdges: Strategy = {
 export const confidenceAdaptive: Strategy = {
 	...base,
 	id: 'confidence-adaptive',
-	label: 'Confidence mask, motion-adaptive blend',
-	description: 'As the full proposal, without edge refinement: shows what the bilateral filter adds at hair and fingers.',
+	label: 'Confidence mask + box blur + motion-adaptive EMA',
+	description: 'As with all options on, without edge refinement: shows what the bilateral filter adds at hair and fingers.',
 	mask: [toBackground, boxBlur, adaptiveBlend],
 	frame: [],
 	composite: { edgeSoftness: 2 },
@@ -34,8 +34,8 @@ export const confidenceAdaptive: Strategy = {
 export const confidenceEdges: Strategy = {
 	...base,
 	id: 'confidence-edges',
-	label: 'Confidence mask, edge refinement',
-	description: 'As the full proposal, without the temporal blend: shows the flicker the blend removes.',
+	label: 'Confidence mask + box blur + joint bilateral',
+	description: 'As with all options on, without the temporal blend: shows the flicker the blend removes.',
 	mask: [toBackground, boxBlur],
 	frame: [edgeRefinement],
 	composite: { edgeSoftness: 2 },
@@ -44,7 +44,7 @@ export const confidenceEdges: Strategy = {
 export const confidenceFixedEdges: Strategy = {
 	...base,
 	id: 'confidence-fixed-edges',
-	label: 'Confidence mask, fixed blend, edge refinement',
+	label: 'Confidence mask + box blur + fixed EMA 0.4 + joint bilateral',
 	description: 'The temporal blend at a fixed 0.4 of the new mask everywhere: steadier still edges than none, but trails fast movement.',
 	mask: [toBackground, boxBlur, { pass: 'temporal', enabled: true, params: { weight: 0.4 } }],
 	frame: [edgeRefinement],
@@ -54,7 +54,7 @@ export const confidenceFixedEdges: Strategy = {
 export const confidenceOnly: Strategy = {
 	...base,
 	id: 'confidence-only',
-	label: 'Confidence mask, box blur',
+	label: 'Confidence mask + box blur',
 	description: 'The confidence mask in place of the category mask and nothing else: segmentationMask alone.',
 	mask: [toBackground, boxBlur],
 	frame: [],
@@ -64,7 +64,7 @@ export const confidenceOnly: Strategy = {
 export const confidenceOpacity: Strategy = {
 	...base,
 	id: 'confidence-opacity',
-	label: 'Confidence as opacity',
+	label: 'Confidence as alpha (linear blend, no 0.5 cut)',
 	description: 'Blends frame and background by the background probability itself instead of a cut at 0.5. No temporal blend or edge refinement.',
 	mask: [toBackground, boxBlur],
 	frame: [],
@@ -75,7 +75,7 @@ export const confidenceOpacity: Strategy = {
 export const adaptiveEdgeFloor: Strategy = {
 	...base,
 	id: 'adaptive-edge-floor',
-	label: 'Confidence mask, motion-adaptive blend, edge floor (#135)',
+	label: 'Confidence mask + box blur + motion-adaptive EMA + smoothstep floor (#135)',
 	description: 'livekit/track-processors-js#135: the motion-adaptive blend with a 0.015 floor on the edge half-width. No edge refinement.',
 	mask: [toBackground, boxBlur, adaptiveBlend],
 	frame: [],

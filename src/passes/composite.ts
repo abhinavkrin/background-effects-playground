@@ -67,7 +67,7 @@ const fragment = glsl`#version 300 es
 export const COMPOSITE_PARAMS: readonly ParamSpec[] = [
 	{ key: 'edgeSoftness', label: 'Edge feathering', kind: 'number', min: 0, max: 8, step: 0.25, help: 'Width of the smoothstep around the 0.5 cut, in mask gradients. Library: 2.' },
 	{ key: 'edgeMinHalfWidth', label: 'Edge min half-width', kind: 'number', min: 0, max: 0.1, step: 0.005, help: 'Floor on the smoothstep half-width around 0.5. Library: 0; #135: 0.015.' },
-	{ key: 'confidenceAsOpacity', label: 'Confidence as opacity', kind: 'boolean', help: 'Blend by the background probability itself instead of a cut at 0.5; the two edge settings above then do nothing.' },
+	{ key: 'confidenceAsOpacity', label: 'Confidence as alpha', kind: 'boolean', help: 'Blend by the background probability itself instead of a cut at 0.5; the two edge settings above then do nothing.' },
 ];
 
 export const COMPOSITE_DEFAULTS: Params = { edgeSoftness: 2, edgeMinHalfWidth: 0, confidenceAsOpacity: false };

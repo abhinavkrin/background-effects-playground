@@ -1,5 +1,9 @@
 Background Effects Playground
 
+vendor/livekit-track-processors-0.8.3-options.tgz is a build of @livekit/track-processors by LiveKit, Inc., licensed
+under the Apache License, Version 2.0 (see LICENSE). Modified: built from livekit/track-processors-js main at 0b32e48
+with the segmentationMask, temporalSmoothing and edgeRefinement options added.
+
 This project includes the following MediaPipe models by Google LLC, licensed under the Apache License, Version 2.0
 (see LICENSE):
 
@@ -7,7 +11,18 @@ This project includes the following MediaPipe models by Google LLC, licensed und
 - public/models/selfie_segmenter_square.tflite, unmodified.
   Model card: https://storage.googleapis.com/mediapipe-assets/Model%20Card%20MediaPipe%20Selfie%20Segmentation.pdf
 
+- public/models/selfie_multiclass_256x256_fp32.tflite, unmodified.
 - public/models/selfie_multiclass_256x256_fp16.tflite, modified: the float32 weights of selfie_multiclass_256x256
   were converted to float16 with tools/fp16_convert.py, and are converted back to float32 by DEQUANTIZE operations
   when the model loads. The model's structure and metadata are unchanged.
   Model card: https://storage.googleapis.com/mediapipe-assets/Model%20Card%20Multiclass%20Segmentation.pdf
+
+The background photos in public/backgrounds/ are dedicated to the public domain under CC0 1.0 and were resized to
+1280 px wide:
+
+- mountain-lake.jpg: "Mountain lake in the summer" by Jaser Cervantes (https://unsplash.com/photos/EtmDVzNrJBY),
+  https://commons.wikimedia.org/wiki/File:Mountain_lake_in_the_summer_(Unsplash).jpg
+- moraine-lake.jpg: "The Moraine Lake landscape" by Ezra Jeffrey (https://unsplash.com/photos/k1zF-mfUe8w),
+  https://commons.wikimedia.org/wiki/File:The_Moraine_Lake_landscape_(Unsplash).jpg
+- forest-lake.jpg: "Landscape-nature-forest-lake" by www.Pixel.la Free Stock Photos,
+  https://commons.wikimedia.org/wiki/File:Landscape-nature-forest-lake_(24300004076).jpg

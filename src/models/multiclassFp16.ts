@@ -11,5 +11,5 @@ export const multiclassFp16: ModelEntry = {
 	labels: ['background', 'hair', 'body-skin', 'face-skin', 'clothes', 'others'],
 	precision: 'float16',
 	origin: 'tools/fp16_convert.py applied to https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite',
-	notes: 'Best quality: clean fingers, no shelf clutter. Its weights converted from float32 to float16, half the download.',
+	notes: 'Best quality: clean fingers and hair, furniture stays in the background. Its weights converted from float32 to float16, half the download.',
 };

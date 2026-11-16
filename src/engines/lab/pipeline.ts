@@ -106,8 +106,8 @@ export class LabPipeline {
 		this.strategy = strategy;
 	}
 
-	setBackground(setting: BackgroundSetting): void {
-		this.background.set(setting);
+	setBackground(setting: BackgroundSetting): Promise<void> {
+		return this.background.set(setting, this.canvas.width, this.canvas.height);
 	}
 
 	get backgroundDisabled(): boolean {

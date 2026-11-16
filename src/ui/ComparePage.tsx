@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ENGINE_LABELS, PROPOSED_DEFAULTS, SWITCH_METHODS, type EngineKind, type LibraryOptions, type SwitchMethod } from '../engines/types';
+import { ALL_OPTIONS_ON, ENGINE_LABELS, LIBRARY_DEFAULTS, SWITCH_METHODS, describeLibrary, type EngineKind, type LibraryOptions, type SwitchMethod } from '../engines/types';
 import { lab } from '../lab/lab';
 import { Pane, type PaneConfig } from '../lab/pane';
 import { useStore } from '../lib/store';
@@ -8,6 +8,7 @@ import { VIEW_MODES, type ViewMode } from '../passes/composite';
 import { conditions } from '../sim/conditions';
 import { STRATEGIES, cloneStrategy, strategyById, type Strategy } from '../strategies';
 import { saveBlob, stamp } from './files';
+import { LibraryOptionsEditor } from './LibraryOptionsEditor';
 import { PaneSurface } from './PaneSurface';
 import { StrategyEditor } from './StrategyEditor';
 
@@ -17,35 +18,25 @@ interface ComparePaneConfig extends PaneConfig {
 	library: LibraryOptions;
 }
 
-const config = (engine: EngineKind, modelId: string, presetId: string): ComparePaneConfig => ({
+const config = (engine: EngineKind, modelId: string, presetId: string, library = LIBRARY_DEFAULTS): ComparePaneConfig => ({
 	engine,
 	modelId,
 	presetId,
 	edited: false,
 	strategy: cloneStrategy(strategyById(presetId)),
 	view: 'effect',
-	library: PROPOSED_DEFAULTS,
+	library,
 });
 
 const DEFAULTS: ComparePaneConfig[] = [
-	config('stock', 'selfie-landscape', 'category-box-blur'),
-	config('proposed', 'selfie-multiclass-fp16', 'confidence-adaptive-edges'),
+	config('library', 'selfie-landscape', 'category-box-blur'),
+	config('library', 'selfie-multiclass-fp16', 'confidence-adaptive-edges', ALL_OPTIONS_ON),
 	config('lab', 'selfie-multiclass-fp16', 'confidence-opacity'),
 	config('lab', 'selfie-multiclass-fp16', 'confidence-only'),
 ];
 
-const libraryLabel = ({ segmentationMask, temporalSmoothing, edgeRefinement }: LibraryOptions) =>
-	[`${segmentationMask} mask`, temporalSmoothing && 'temporal smoothing', edgeRefinement && 'edge refinement'].filter(Boolean).join(', ');
-
-const labelOf = (entry: ComparePaneConfig) => {
-	if (entry.engine === 'stock') {
-		return 'category mask';
-	}
-	if (entry.engine === 'proposed') {
-		return libraryLabel(entry.library);
-	}
-	return `${strategyById(entry.presetId).label}${entry.edited ? ' (edited)' : ''}`;
-};
+const labelOf = (entry: ComparePaneConfig) =>
+	entry.engine === 'lab' ? `${strategyById(entry.presetId).label}${entry.edited ? ' (edited)' : ''}` : describeLibrary(entry.library);
 
 interface ComparePaneProps {
 	pane: Pane;
@@ -67,7 +58,7 @@ const ComparePane = ({ pane, index, value, onChange, active, switchMethod }: Com
 		void pane.start(value, lab.background.get(), { width, height });
 		// The library takes its options at construction; the rest is applied to the running engine below.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [pane, value.engine, value.engine === 'proposed' && value.library]);
+	}, [pane, value.engine, value.engine === 'library' && value.library]);
 
 	useEffect(() => () => void pane.dispose(), [pane]);
 
@@ -112,29 +103,7 @@ const ComparePane = ({ pane, index, value, onChange, active, switchMethod }: Com
 							))}
 						</select>
 					</label>
-					{value.engine === 'proposed' && (
-						<>
-							<label>
-								segmentationMask
-								<select
-									aria-label='segmentationMask'
-									value={value.library.segmentationMask}
-									onChange={(event) => onChange({ ...value, library: { ...value.library, segmentationMask: event.target.value as LibraryOptions['segmentationMask'] } })}
-								>
-									<option value='confidence'>confidence</option>
-									<option value='category'>category</option>
-								</select>
-							</label>
-							<label className='param-check'>
-								<input type='checkbox' checked={value.library.temporalSmoothing} onChange={(event) => onChange({ ...value, library: { ...value.library, temporalSmoothing: event.target.checked } })} />
-								temporalSmoothing
-							</label>
-							<label className='param-check'>
-								<input type='checkbox' checked={value.library.edgeRefinement} onChange={(event) => onChange({ ...value, library: { ...value.library, edgeRefinement: event.target.checked } })} />
-								edgeRefinement
-							</label>
-						</>
-					)}
+					{value.engine === 'library' && <LibraryOptionsEditor value={value.library} onChange={(library) => onChange({ ...value, library })} />}
 					{value.engine === 'lab' && (
 						<>
 							<label>

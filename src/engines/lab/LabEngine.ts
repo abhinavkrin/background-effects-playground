@@ -69,7 +69,23 @@ export class LabEngine implements Engine {
 		this.view = init.view;
 		this.element.width = init.width;
 		this.element.height = init.height;
-		this.runtime = await this.createRuntime(init.model, init.bytes, init.width, init.height);
+		const { strategy, background } = this;
+		const runtime = await this.createRuntime(init.model, init.bytes, init.width, init.height);
+		if (this.disposed) {
+			this.disposeRuntime(runtime);
+			return;
+		}
+		this.runtime = runtime;
+		// Settings changed while the runtime was being built.
+		if (this.background !== background) {
+			await runtime.pipeline.setBackground(this.background);
+		}
+		if (this.strategy !== strategy) {
+			runtime.pipeline.setStrategy(this.strategy);
+			if (this.strategy.segmenterOutput !== strategy.segmenterOutput) {
+				await runtime.segmenter.setOptions(outputOptions(this.strategy.segmenterOutput));
+			}
+		}
 	}
 
 	push(frame: VideoFrame): void {
@@ -129,7 +145,7 @@ export class LabEngine implements Engine {
 
 	async setBackground(background: BackgroundSetting): Promise<void> {
 		this.background = background;
-		this.runtime?.pipeline.setBackground(background);
+		await this.runtime?.pipeline.setBackground(background);
 	}
 
 	async setStrategy(strategy: Strategy): Promise<void> {
@@ -201,10 +217,15 @@ export class LabEngine implements Engine {
 		const canvas = new OffscreenCanvas(width || 640, height || 360);
 		// The pipeline takes the context first, as the library's setupWebGL does; MediaPipe then shares it.
 		const pipeline = new LabPipeline(canvas);
-		pipeline.setStrategy(this.strategy);
-		pipeline.setBackground(this.background);
-		const segmenter = await createSegmenter(canvas, bytes ? { bytes } : { url: modelUrl(model) }, this.strategy.segmenterOutput);
-		return { canvas, pipeline, segmenter };
+		try {
+			pipeline.setStrategy(this.strategy);
+			await pipeline.setBackground(this.background);
+			const segmenter = await createSegmenter(canvas, bytes ? { bytes } : { url: modelUrl(model) }, this.strategy.segmenterOutput);
+			return { canvas, pipeline, segmenter };
+		} catch (e) {
+			pipeline.dispose();
+			throw e;
+		}
 	}
 
 	private disposeRuntime(runtime: Runtime): void {

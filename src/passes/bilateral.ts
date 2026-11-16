@@ -2,7 +2,7 @@ import { num } from '../lib/params';
 import type { PassDefinition } from './types';
 import { RenderTarget, bindTexture, createProgram, glsl, glslFloat, useQuad, vertexShaderSource } from './gl';
 
-// The parameters are baked in as constants, as the proposed library build does, and the program is rebuilt when
+// The parameters are baked in as constants, as the library's edgeRefinement does, and the program is rebuilt when
 // they change.
 const fragment = (radius: number, step: number, spatialSigma: number, rangeSigma: number) => glsl`#version 300 es
   precision mediump float;
@@ -42,7 +42,7 @@ export const bilateralPass: PassDefinition = {
 	id: 'bilateral',
 	label: 'Joint bilateral refine',
 	stage: 'frame',
-	description: 'Guided by the frame. Proposed build: 9x9 window (radius 4), step 2, spatial sigma 3, range sigma 0.1.',
+	description: 'Guided by the frame. edgeRefinement: 9x9 window (radius 4), step 2, spatial sigma 3, range sigma 0.1.',
 	params: [
 		{ key: 'radius', label: 'Radius (taps)', kind: 'number', min: 1, max: 8, step: 1 },
 		{ key: 'step', label: 'Step (mask texels)', kind: 'number', min: 0.5, max: 4, step: 0.5 },
