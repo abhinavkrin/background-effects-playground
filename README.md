@@ -1,8 +1,9 @@
 # Background Effects Playground
 
 Camera background blur and replacement in the browser, side by side: segmentation models, mask techniques, and
-[`@livekit/track-processors`](https://github.com/livekit/track-processors-js) with the options added in
-[#159](https://github.com/livekit/track-processors-js/pull/159) and its follow-ups.
+[`@livekit/track-processors`](https://github.com/livekit/track-processors-js) with alpha blending from
+[#162](https://github.com/livekit/track-processors-js/pull/162) and the options in
+[#160](https://github.com/livekit/track-processors-js/pull/160) and [#161](https://github.com/livekit/track-processors-js/pull/161).
 
 **Try it:** https://abhinavkrin.github.io/background-effects-playground/
 
@@ -15,16 +16,17 @@ locally on the GPU through MediaPipe and WebGL, and the page has no server beyon
 
 | Engine | What it runs |
 | --- | --- |
-| LiveKit track-processors | `@livekit/track-processors` built from livekit/track-processors-js `main` (0b32e48) with the three options below applied, vendored in `vendor/`. Driven as an app drives it: `setProcessor(BackgroundProcessor(...))` on a `LocalVideoTrack`. With the options at their defaults it renders as `main`. |
+| LiveKit track-processors | `@livekit/track-processors` built from livekit/track-processors-js `main` (7ef0912, with #162) plus #160 and #161, vendored in `vendor/`. Driven as an app drives it: `setProcessor(BackgroundProcessor(...))` on a `LocalVideoTrack`. With the options at their defaults it renders as `main`. |
 | Custom WebGL pipeline | The library's WebGL pipeline split into passes you can reorder, turn off and tune live, with debug views of the raw and refined masks. |
 
 **BackgroundProcessor options** (set per pane)
 
 | Option | Technique |
 | --- | --- |
-| `segmentationMask: 'category' \| 'confidence'` | Category mask (the default): the per-pixel class decision, 0 or 1. Confidence mask: the per-pixel probability, 0 to 1, so the edge moves by fractions of a pixel and multiclass models work. |
+| `maskBlending: 'alpha' \| 'binary'` | Alpha (the default): the confidence mask, 0 to 1, is each pixel's opacity, so hair stays soft and multiclass models work. Binary: the category mask, cut at 0.5 with a feathered edge. |
+| `alphaRange: [low, high]` | With alpha blending, smoothstep(low, high) on the confidence before it is used as opacity: faint ghosts drop out, the body is fully solid. `[0, 1]` (the default) leaves it as is. |
 | `temporalSmoothing` | Motion-adaptive EMA of the mask: keeps 15% of the new mask where the frame is still, up to 90% where it moves. |
-| `edgeRefinement` | Joint bilateral filter guided by the frame: each mask pixel takes the mask of nearby pixels of similar colour, so the edge snaps to the outline. |
+| `edgeRefinement`, `edgeRefinementRadius` | Joint bilateral filter guided by the frame: each mask pixel takes the mask of nearby pixels of similar colour, so the edge snaps to the outline. The radius (default 4) sets how far it looks: (2r + 1)² samples per pixel. |
 
 **Techniques**
 
@@ -40,8 +42,8 @@ locally on the GPU through MediaPipe and WebGL, and the page has no server beyon
 - **Confidence as alpha:** blends frame and background by the probability itself instead of a smoothstep around 0.5.
 
 **Strategies** (custom pipeline) are combinations of these, named by what they run, for example
-"Confidence mask + box blur + motion-adaptive EMA + joint bilateral", which matches the library with all three
-options on. Every pass and parameter can be edited per pane.
+"Confidence as alpha + box blur 4 + motion-adaptive EMA + joint bilateral", which matches the library with
+`temporalSmoothing` and `edgeRefinement` on. Every pass and parameter can be edited per pane.
 
 **Background**: a scenery photo (the default), blur, test patterns (stripes for edge errors, flat green for
 leakage), your own image, or none. Your image stays in the browser like the camera picture.

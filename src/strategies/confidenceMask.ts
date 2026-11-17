@@ -10,7 +10,7 @@ const edgeRefinement: PassConfig = { pass: 'bilateral', enabled: true, params: {
 
 const base = { segmenterOutput: 'confidence', glReset: true, maskTargetEdge: 640 } as const;
 
-/** What the library does with segmentationMask 'confidence', temporalSmoothing and edgeRefinement. */
+/** temporalSmoothing and edgeRefinement on a confidence mask that is still cut at 0.5, as before alpha blending. */
 export const confidenceAdaptiveEdges: Strategy = {
 	...base,
 	id: 'confidence-adaptive-edges',
@@ -55,7 +55,7 @@ export const confidenceOnly: Strategy = {
 	...base,
 	id: 'confidence-only',
 	label: 'Confidence mask + box blur',
-	description: 'The confidence mask in place of the category mask and nothing else: segmentationMask alone.',
+	description: 'The confidence mask in place of the category mask and nothing else, still cut at 0.5.',
 	mask: [toBackground, boxBlur],
 	frame: [],
 	composite: { edgeSoftness: 2 },

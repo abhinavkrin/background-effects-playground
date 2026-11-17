@@ -310,6 +310,10 @@ main {
 	font-weight: 600;
 }
 
+.option-head input[type='number'] {
+	width: 56px;
+}
+
 .option-sub {
 	color: var(--muted);
 	font-size: 12px;

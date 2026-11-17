@@ -1,3 +1,4 @@
+import type { AlphaRange, MaskBlending } from '@livekit/track-processors';
 import type { ImageSegmenter } from '@mediapipe/tasks-vision';
 import type { ModelEntry } from '../models';
 import type { BackgroundSetting } from '../passes/background';
@@ -7,17 +8,22 @@ import type { Strategy } from '../strategies';
 /** `library`: @livekit/track-processors itself (see LibraryEngine). `lab`: the editable pipeline. */
 export type EngineKind = 'library' | 'lab';
 
-/** The BackgroundProcessor options from livekit/track-processors-js#159 and its two follow-ups. */
+/**
+ * The BackgroundProcessor mask options: `maskBlending` and `alphaRange` from livekit/track-processors-js#162 (on main),
+ * `temporalSmoothing` from #160, `edgeRefinement` and `edgeRefinementRadius` from #161.
+ */
 export interface LibraryOptions {
-	segmentationMask: 'category' | 'confidence';
+	maskBlending: MaskBlending;
+	alphaRange: AlphaRange;
 	temporalSmoothing: boolean;
 	edgeRefinement: boolean;
+	edgeRefinementRadius: number;
 }
 
 /** The library's defaults: it renders as livekit/track-processors-js main. */
-export const LIBRARY_DEFAULTS: LibraryOptions = { segmentationMask: 'category', temporalSmoothing: false, edgeRefinement: false };
+export const LIBRARY_DEFAULTS: LibraryOptions = { maskBlending: 'alpha', alphaRange: [0, 1], temporalSmoothing: false, edgeRefinement: false, edgeRefinementRadius: 4 };
 
-export const ALL_OPTIONS_ON: LibraryOptions = { segmentationMask: 'confidence', temporalSmoothing: true, edgeRefinement: true };
+export const ALL_OPTIONS_ON: LibraryOptions = { maskBlending: 'alpha', alphaRange: [0.15, 0.85], temporalSmoothing: true, edgeRefinement: true, edgeRefinementRadius: 4 };
 
 export const ENGINE_LABELS: Record<EngineKind, string> = {
 	library: 'LiveKit track-processors',
@@ -25,8 +31,15 @@ export const ENGINE_LABELS: Record<EngineKind, string> = {
 };
 
 /** The options a library pane runs with, as they are passed to BackgroundProcessor. */
-export const describeLibrary = ({ segmentationMask, temporalSmoothing, edgeRefinement }: LibraryOptions): string =>
-	[`segmentationMask: '${segmentationMask}'`, temporalSmoothing && 'temporalSmoothing', edgeRefinement && 'edgeRefinement'].filter(Boolean).join(', ');
+export const describeLibrary = ({ maskBlending, alphaRange: [low, high], temporalSmoothing, edgeRefinement, edgeRefinementRadius }: LibraryOptions): string =>
+	[
+		`maskBlending: '${maskBlending}'`,
+		maskBlending === 'alpha' && (low !== 0 || high !== 1) && `alphaRange: [${low}, ${high}]`,
+		temporalSmoothing && 'temporalSmoothing',
+		edgeRefinement && (edgeRefinementRadius === LIBRARY_DEFAULTS.edgeRefinementRadius ? 'edgeRefinement' : `edgeRefinement (radius ${edgeRefinementRadius})`),
+	]
+		.filter(Boolean)
+		.join(', ');
 
 /**
  * How a running engine moves to another model.

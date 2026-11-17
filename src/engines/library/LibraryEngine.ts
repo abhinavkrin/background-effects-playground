@@ -221,8 +221,9 @@ export class LibraryEngine implements Engine {
 		this.track = undefined;
 	}
 
+	/** The mask the library asks the segmenter for: confidence masks for alpha blending, the category mask for binary. */
 	private segmenterOutput(): 'confidence' | 'category' {
-		return this.options.segmentationMask;
+		return this.options.maskBlending === 'alpha' ? 'confidence' : 'category';
 	}
 
 	/**
