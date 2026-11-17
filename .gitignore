@@ -4,3 +4,4 @@ dist/
 public/mediapipe/
 *.log
 .DS_Store
+.verification

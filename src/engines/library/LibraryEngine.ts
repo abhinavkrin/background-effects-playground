@@ -13,6 +13,9 @@ type FrameProcessingStats = Parameters<NonNullable<BackgroundOptions['onFramePro
 
 let instances = 0;
 
+/** How long dispose waits for the library to stop its processor before stopping the track regardless. */
+const STOP_PROCESSOR_TIMEOUT_MS = 1000;
+
 const switchOptions = (background: BackgroundSetting): SwitchBackgroundProcessorOptions => {
 	switch (background.mode) {
 		case 'blur':
@@ -198,7 +201,18 @@ export class LibraryEngine implements Engine {
 		this.disposed = true;
 		if (this.track) {
 			this.track.detach(this.element);
-			await this.track.stopProcessor().catch(() => undefined);
+			// A processor that has never seen a camera frame (no source started) can leave stopProcessor pending
+			// forever, which would block the pane from starting its next engine. Stopping the track ends it anyway.
+			const stopped = await Promise.race([
+				this.track.stopProcessor().then(
+					() => true,
+					() => true,
+				),
+				new Promise<false>((resolve) => setTimeout(() => resolve(false), STOP_PROCESSOR_TIMEOUT_MS)),
+			]);
+			if (!stopped) {
+				console.warn(`${this.name}: stopProcessor did not finish in ${STOP_PROCESSOR_TIMEOUT_MS} ms; stopping the track instead`);
+			}
 			this.track.stop();
 		}
 		this.gpuLoad?.load.dispose();

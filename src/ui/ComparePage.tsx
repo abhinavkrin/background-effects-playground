@@ -29,10 +29,10 @@ const config = (engine: EngineKind, modelId: string, presetId: string, library =
 });
 
 const DEFAULTS: ComparePaneConfig[] = [
+	config('lab', 'selfie-multiclass-fp16', 'alpha-blending'),
+	config('lab', 'selfie-multiclass-fp16', 'alpha-blending-smoothstep'),
 	config('library', 'selfie-landscape', 'category-box-blur'),
 	config('library', 'selfie-multiclass-fp16', 'confidence-adaptive-edges', ALL_OPTIONS_ON),
-	config('lab', 'selfie-multiclass-fp16', 'confidence-opacity'),
-	config('lab', 'selfie-multiclass-fp16', 'confidence-only'),
 ];
 
 const labelOf = (entry: ComparePaneConfig) =>

@@ -1,6 +1,6 @@
 import type { ParamValue } from '../lib/params';
 import { PASSES, passById, type PassConfig, type PassStage } from '../passes';
-import { COMPOSITE_PARAMS } from '../passes/composite';
+import { COMPOSITE_DEFAULTS, COMPOSITE_PARAMS } from '../passes/composite';
 import type { Strategy } from '../strategies';
 import { ParamEditor } from './ParamEditor';
 
@@ -102,7 +102,7 @@ export const StrategyEditor = ({ strategy, onChange }: StrategyEditorProps) => {
 			{stage('frame')}
 			<div className='stage'>
 				<div className='stage-title'>Composite</div>
-				<ParamEditor specs={COMPOSITE_PARAMS} values={strategy.composite} onChange={(key, value) => onChange({ ...strategy, composite: { ...strategy.composite, [key]: value } })} />
+				<ParamEditor specs={COMPOSITE_PARAMS} values={{ ...COMPOSITE_DEFAULTS, ...strategy.composite }} onChange={(key, value) => onChange({ ...strategy, composite: { ...strategy.composite, [key]: value } })} />
 			</div>
 			<button type='button' onClick={() => void navigator.clipboard.writeText(asCode(strategy))} title='Paste into src/strategies/<id>.ts and list it in src/strategies/index.ts'>
 				Copy as a strategy file

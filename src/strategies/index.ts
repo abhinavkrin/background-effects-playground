@@ -1,5 +1,5 @@
 import { categoryMask } from './categoryMask';
-import { adaptiveEdgeFloor, confidenceAdaptive, confidenceAdaptiveEdges, confidenceEdges, confidenceFixedEdges, confidenceOnly, confidenceOpacity } from './confidenceMask';
+import { adaptiveEdgeFloor, alphaBlending, alphaBlendingSmoothstep, confidenceAdaptive, confidenceAdaptiveEdges, confidenceEdges, confidenceFixedEdges, confidenceOnly, confidenceOpacity } from './confidenceMask';
 import type { Strategy } from './types';
 
 export type { Strategy } from './types';
@@ -14,6 +14,8 @@ export const STRATEGIES: readonly Strategy[] = [
 	confidenceEdges,
 	confidenceFixedEdges,
 	adaptiveEdgeFloor,
+	alphaBlending,
+	alphaBlendingSmoothstep,
 ];
 
 export const strategyById = (id: string): Strategy => {

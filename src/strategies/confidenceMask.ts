@@ -81,3 +81,23 @@ export const adaptiveEdgeFloor: Strategy = {
 	frame: [],
 	composite: { edgeSoftness: 2, edgeMinHalfWidth: 0.015 },
 };
+
+/** livekit/track-processors-js#162's alpha blending, with temporalSmoothing and edgeRefinement on as well. */
+export const alphaBlending: Strategy = {
+	...base,
+	id: 'alpha-blending',
+	label: 'Confidence as alpha + box blur 4 + motion-adaptive EMA + joint bilateral (#162)',
+	description: "livekit/track-processors-js#162 with all options on: the person's confidence is each pixel's opacity (no cut at 0.5), the mask box blurred at 4, blended with the previous mask, then refined by a joint bilateral filter.",
+	mask: [toBackground, { pass: 'boxBlur', enabled: true, params: { radius: 4 } }, adaptiveBlend],
+	frame: [edgeRefinement],
+	composite: { edgeSoftness: 2, confidenceAsOpacity: true },
+};
+
+/** alphaBlending with the confidence remapped through a smoothstep, so faint ghosts drop out and the body is fully solid. */
+export const alphaBlendingSmoothstep: Strategy = {
+	...alphaBlending,
+	id: 'alpha-blending-smoothstep',
+	label: 'Confidence as alpha, smoothstep 0.15 to 0.85 + box blur 4 + motion-adaptive EMA + joint bilateral',
+	description: "As #162 with all options on, but the person's confidence goes through smoothstep(0.15, 0.85) before it is used as opacity: below 0.15 is fully transparent, above 0.85 fully solid.",
+	composite: { ...alphaBlending.composite, alphaLow: 0.15, alphaHigh: 0.85, alphaCurve: 'smoothstep' },
+};

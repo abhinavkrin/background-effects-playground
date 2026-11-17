@@ -28,7 +28,17 @@ const fragment = glsl`#version 300 es
   uniform float u_edgeSoftness;
   uniform float u_edgeMinHalfWidth;
   uniform bool u_confidenceAsOpacity;
+  uniform float u_alphaLow;
+  uniform float u_alphaHigh;
+  uniform bool u_alphaSmoothstep;
   out vec4 fragColor;
+
+  // Remaps the person's confidence so [alphaLow, alphaHigh] spans the full opacity range: low-confidence
+  // regions go fully transparent, high-confidence ones fully solid. 0 and 1 with linear is the identity.
+  float personAlpha(float backgroundConfidence) {
+    float t = clamp((1.0 - backgroundConfidence - u_alphaLow) / max(u_alphaHigh - u_alphaLow, 0.0001), 0.0, 1.0);
+    return u_alphaSmoothstep ? t * t * (3.0 - 2.0 * t) : t;
+  }
 
   void main() {
     vec4 frameTex = texture(frame, texCoords);
@@ -48,7 +58,7 @@ const fragment = glsl`#version 300 es
     float grad = length(vec2(dFdx(maskVal), dFdy(maskVal)));
     // u_edgeMinHalfWidth 0 is the library; #135 uses 0.015 so a flat mask never gives a zero-width smoothstep.
     float halfWidth = max(u_edgeMinHalfWidth, grad * u_edgeSoftness);
-    float smoothAlpha = u_confidenceAsOpacity ? maskVal : smoothstep(0.5 - halfWidth, 0.5 + halfWidth, maskVal);
+    float smoothAlpha = u_confidenceAsOpacity ? 1.0 - personAlpha(maskVal) : smoothstep(0.5 - halfWidth, 0.5 + halfWidth, maskVal);
     if (u_view == 3) {
       vec3 tinted = mix(frameTex.rgb, vec3(1.0, 0.1, 0.4), 0.55 * smoothAlpha);
       float edge = 1.0 - smoothstep(0.0, fwidth(maskVal) * 1.5 + 0.0001, abs(maskVal - 0.5));
@@ -68,9 +78,12 @@ export const COMPOSITE_PARAMS: readonly ParamSpec[] = [
 	{ key: 'edgeSoftness', label: 'Edge feathering', kind: 'number', min: 0, max: 8, step: 0.25, help: 'Width of the smoothstep around the 0.5 cut, in mask gradients. Library: 2.' },
 	{ key: 'edgeMinHalfWidth', label: 'Edge min half-width', kind: 'number', min: 0, max: 0.1, step: 0.005, help: 'Floor on the smoothstep half-width around 0.5. Library: 0; #135: 0.015.' },
 	{ key: 'confidenceAsOpacity', label: 'Confidence as alpha', kind: 'boolean', help: 'Blend by the background probability itself instead of a cut at 0.5; the two edge settings above then do nothing.' },
+	{ key: 'alphaLow', label: 'Alpha: transparent below', kind: 'number', min: 0, max: 0.5, step: 0.01, help: 'With confidence as alpha: person confidence at or below this is fully transparent. 0 is #162.' },
+	{ key: 'alphaHigh', label: 'Alpha: solid above', kind: 'number', min: 0.5, max: 1, step: 0.01, help: 'With confidence as alpha: person confidence at or above this is fully solid. 1 is #162.' },
+	{ key: 'alphaCurve', label: 'Alpha: curve', kind: 'select', options: ['linear', 'smoothstep'], help: 'How opacity rises between the two points above.' },
 ];
 
-export const COMPOSITE_DEFAULTS: Params = { edgeSoftness: 2, edgeMinHalfWidth: 0, confidenceAsOpacity: false };
+export const COMPOSITE_DEFAULTS: Params = { edgeSoftness: 2, edgeMinHalfWidth: 0, confidenceAsOpacity: false, alphaLow: 0, alphaHigh: 1, alphaCurve: 'linear' };
 
 /** Draws the final picture to the canvas: frame over background through the mask, or a debug view. */
 export class Composite {
@@ -90,6 +103,9 @@ export class Composite {
 			edgeSoftness: gl.getUniformLocation(this.program, 'u_edgeSoftness'),
 			edgeMinHalfWidth: gl.getUniformLocation(this.program, 'u_edgeMinHalfWidth'),
 			confidenceAsOpacity: gl.getUniformLocation(this.program, 'u_confidenceAsOpacity'),
+			alphaLow: gl.getUniformLocation(this.program, 'u_alphaLow'),
+			alphaHigh: gl.getUniformLocation(this.program, 'u_alphaHigh'),
+			alphaSmoothstep: gl.getUniformLocation(this.program, 'u_alphaSmoothstep'),
 		};
 	}
 
@@ -120,6 +136,9 @@ export class Composite {
 		gl.uniform1f(this.uniforms.edgeSoftness, num(args.params, 'edgeSoftness', 2));
 		gl.uniform1f(this.uniforms.edgeMinHalfWidth, num(args.params, 'edgeMinHalfWidth', 0));
 		gl.uniform1i(this.uniforms.confidenceAsOpacity, bool(args.params, 'confidenceAsOpacity', false) ? 1 : 0);
+		gl.uniform1f(this.uniforms.alphaLow, num(args.params, 'alphaLow', 0));
+		gl.uniform1f(this.uniforms.alphaHigh, num(args.params, 'alphaHigh', 1));
+		gl.uniform1i(this.uniforms.alphaSmoothstep, args.params.alphaCurve === 'smoothstep' ? 1 : 0);
 		const blend = args.view === 'effect';
 		if (blend) {
 			gl.enable(gl.BLEND);
