@@ -101,3 +101,12 @@ export const alphaBlendingSmoothstep: Strategy = {
 	description: "As #162 with all options on, but the person's confidence goes through smoothstep(0.15, 0.85) before it is used as opacity: below 0.15 is fully transparent, above 0.85 fully solid.",
 	composite: { ...alphaBlending.composite, alphaLow: 0.15, alphaHigh: 0.85, alphaCurve: 'smoothstep' },
 };
+
+/** alphaBlendingSmoothstep without the joint bilateral, to see what edgeRefinement adds on its own. */
+export const alphaBlendingSmoothstepNoBilateral: Strategy = {
+	...alphaBlendingSmoothstep,
+	id: 'alpha-blending-smoothstep-no-bilateral',
+	label: 'Confidence as alpha, smoothstep 0.15 to 0.85 + box blur 4 + motion-adaptive EMA',
+	description: 'As the smoothstep preset, but without the joint bilateral filter (edgeRefinement off). Compare the two to see what edge refinement does.',
+	frame: [],
+};
